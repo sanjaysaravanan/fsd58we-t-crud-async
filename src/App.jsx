@@ -3,12 +3,22 @@ import { useEffect, useState } from "react";
 import "./App.css";
 import ProductAddForm from "./components/ProductAddForm";
 import Product from "./components/Product";
-import { createProductAPI, deleteProductAPI, readProductsAPI } from "./apis";
+import {
+  // createProductAPI,
+  deleteProductAPI,
+  editProductAPI,
+  // readProductsAPI,
+} from "./apis";
+import { createProductAPI, readProductsAPI } from "./apis-axios";
+import Loader from "./components/Loader";
 
 function App() {
   // State Variable Array of Products
   const [products, setProducts] = useState([]);
   const [editData, setEditData] = useState(null);
+
+  // state for loading indicator
+  const [loading, setLoading] = useState(false);
 
   const addProduct = async (formDetails) => {
     const newProduct = await createProductAPI(formDetails);
@@ -17,26 +27,71 @@ function App() {
   };
 
   const loadAllProducts = async () => {
-    const pds = await readProductsAPI();
+    try {
+      setLoading(true);
+      const pds = await readProductsAPI();
 
-    setProducts(pds);
+      setProducts(pds);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const deleteProduct = async (pdId) => {
+    setLoading(true);
     // delete the product with pId from the list
     const deletedRes = await deleteProductAPI(pdId);
     setProducts(products.filter((p) => p.id !== deletedRes.id));
+    setLoading(false);
   };
 
   const loadEditData = (pdData) => {
     setEditData(pdData);
   };
 
-  const editProduct = (formState, id) => {
+  const editProduct = async (formState, id) => {
+    setLoading(true);
+    // call the edit API then load the resulting product
+    const resultPd = await editProductAPI(formState, id);
+
+    const index = products.findIndex((pd) => pd.id === id);
+
+    const tempProducts = [...products];
+
+    // replace the old data with new edited data
+    tempProducts[index] = resultPd;
+
+    setProducts(tempProducts);
+
     setEditData(null);
+    setLoading(false);
   };
 
-  const toggleStar = (pdId) => {};
+  const toggleStar = (pdId) => {
+    // whether this product is starred or not
+    const tempPd = products.find((pd) => pd.id === pdId);
+
+    // product is starred
+    if (tempPd.isStarred) {
+      editProduct(
+        {
+          ...tempPd,
+          isStarred: false,
+        },
+        pdId
+      );
+    } else {
+      editProduct(
+        {
+          ...tempPd,
+          isStarred: true,
+        },
+        pdId
+      );
+    }
+  };
 
   useEffect(() => {
     loadAllProducts();
@@ -64,6 +119,7 @@ function App() {
           />
         ))}
       </div>
+      {loading && <Loader />}
     </>
   );
 }
